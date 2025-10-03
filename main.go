@@ -1,8 +1,9 @@
 package main
 
 import (
+	"erp-system/controllers"
 	"erp-system/initializers"
-	"net/http"
+	"erp-system/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -18,13 +19,14 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
-	r := gin.Default()
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "ERP System Ready!",
-		})
-	})
+	router := gin.Default()
 
+	router.POST("account/login/", controllers.UserLogin)
+	router.POST("account/create/", controllers.UserCreate)
+	router.POST("products/", middleware.RequireAuth, controllers.ProductCreate)
+	router.GET("products/:id", middleware.RequireAuth, controllers.ProductGet)
+	router.PUT("products/:id", middleware.RequireAuth, controllers.ProductUpdate)
+	router.GET("products/list/", middleware.RequireAuth, controllers.ProductList)
 	logger.Info("Starting Server on port 8000")
-	r.Run()
+	router.Run()
 }
