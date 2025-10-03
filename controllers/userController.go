@@ -5,10 +5,12 @@ import (
 	"erp-system/models"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -16,6 +18,11 @@ import (
 type AccountBody struct {
 	Email    string `json:"email" binding:"required,email,max=255"`
 	Role     string `json:"role" binding:"required,max=20"`
+	Password string `json:"password" binding:"required,min=8,max=255"`
+}
+
+type AccountLogin struct {
+	Email    string `json:"email" binding:"required,email,max=255"`
 	Password string `json:"password" binding:"required,min=8,max=255"`
 }
 
@@ -99,3 +106,56 @@ func UserCreate(c *gin.Context) {
 
 }
 
+func UserLogin(c *gin.Context) {
+	// Get and Validate input request
+	var req AccountLogin
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Invalid request object")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request object",
+		})
+		return
+	}
+
+	// Retrieve Existing account and compare password hash
+
+	var existingAccount models.User
+	if err := initializers.DB.Where("email = ?", req.Email).First(&existingAccount).Error; err != nil {
+		log.Printf("Account Does not exist")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid login",
+		})
+		return
+	}
+
+	err := bcrypt.CompareHashAndPassword([]byte(existingAccount.Password), []byte(req.Password))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid login",
+		})
+		return
+	}
+	// Password is correct then proceed to generate JWT token
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": existingAccount.ID,
+		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
+	})
+	// sign and get the complete encoded token as string using secret
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
+
+	if err != nil {
+		log.Printf("Unable to sign jwt with secret key %s", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Something Unexpected happended",
+		})
+		return
+	}
+	// Set token to cookie and expiry too
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
+	c.JSON(http.StatusOK, gin.H{
+		// Display token if you like o
+		//"token": tokenString
+	})
+}
