@@ -27,6 +27,8 @@ func main() {
 	router.GET("products/:id", middleware.RequireAuth, controllers.ProductGet)
 	router.PUT("products/:id", middleware.RequireAuth, controllers.ProductUpdate)
 	router.GET("products/list/", middleware.RequireAuth, controllers.ProductList)
+	router.GET("orders/list/", middleware.RequireAuth, controllers.OrderList)
+	router.POST("orders/", middleware.RequireAuth, controllers.OrderCreate)
 	logger.Info("Starting Server on port 8000")
 	router.Run()
 }
