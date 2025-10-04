@@ -154,7 +154,7 @@ func OrderCreate(c *gin.Context) {
 		})
 		return
 	}
-	// Convert userID to string before parsing into strconv.ParseUint
+	// Get user account
 
 	var user models.User
 	if err := initializers.DB.First(&user, userID).Error; err != nil {
