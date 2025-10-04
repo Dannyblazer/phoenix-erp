@@ -146,6 +146,7 @@ func ProductGet(c *gin.Context) {
 
 func OrderCreate(c *gin.Context) {
 	// Get UserID
+	fmt.Println("Order service Reached")
 	userID, ok := c.Get("userID")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -154,22 +155,14 @@ func OrderCreate(c *gin.Context) {
 		return
 	}
 	// Convert userID to string before parsing into strconv.ParseUint
-	userIDStr, ok := userID.(string)
-	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid user ID type",
+
+	var user models.User
+	if err := initializers.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "User not found",
 		})
 		return
 	}
-
-	id, err := strconv.ParseUint(userIDStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid post ID",
-		})
-		return
-	}
-
 	// Parse and validate request body
 	orderSvc := &services.OrderService{DB: initializers.DB}
 
@@ -182,7 +175,7 @@ func OrderCreate(c *gin.Context) {
 	}
 
 	// Create Order
-	order, err := orderSvc.CreateOrder(uint(id), uint(req.ProductID), req.Quantity)
+	order, err := orderSvc.CreateOrder(uint(user.ID), uint(req.ProductID), req.Quantity)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -197,7 +190,7 @@ func OrderCreate(c *gin.Context) {
 func ProductUpdate(c *gin.Context) {
 	// Get and validate productID
 	idStr := c.Param("id")
-	fmt.Printf("Here's the product ID: %s", idStr)
+	fmt.Printf("Here'{{local}}orders/s the product ID: %s", idStr)
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -244,13 +237,13 @@ func ProductUpdate(c *gin.Context) {
 		return
 	}
 
-	product = models.Product{
-		Name:     req.Name,
-		Price:    req.Price,
-		Quantity: req.Quantity,
-	}
+	// Update product fields
+	product.Name = req.Name
+	product.Price = req.Price
+	product.Quantity = req.Quantity
 
-	if err := initializers.DB.Create(&product).Error; err != nil {
+	// Save updated product
+	if err := initializers.DB.Save(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Unable to update product",
 		})
@@ -271,4 +264,18 @@ func ProductUpdate(c *gin.Context) {
 		"product": response,
 	})
 
+}
+
+func OrderList(c *gin.Context) {
+	var orders []models.Order
+	if err := initializers.DB.Find(&orders).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Unable to fetch products",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"orders": orders,
+	})
 }
