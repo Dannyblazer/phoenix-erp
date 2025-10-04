@@ -2,6 +2,7 @@ package services
 
 import (
 	"erp-system/models"
+	"errors"
 
 	"gorm.io/gorm"
 )
@@ -16,7 +17,7 @@ func (s *OrderService) CreateOrder(userID uint, productID uint, qty int) (*model
 		return nil, err
 	}
 	if product.Quantity < qty {
-		return nil, gorm.ErrRecordNotFound // Or custom error
+		return nil, errors.New("insufficient stock for the requested quantity")
 	}
 
 	// Transaction: Deduct stock + create order
